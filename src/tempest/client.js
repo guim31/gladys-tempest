@@ -67,12 +67,8 @@ export function createTempestClient({
       throw new TempestApiError(`the Tempest API is unreachable (${reason})`, { code: 'network' });
     }
 
-    let body = null;
-    try {
-      body = await response.json();
-    } catch {
-      body = null;
-    }
+    // An unreadable body (an HTML error page) counts as no body.
+    const body = await response.json().catch(() => null);
     // The API also reports errors inside a 200 or 4xx body:
     // { status: { status_code: 401, status_message: 'UNAUTHORIZED' } }.
     const apiStatus = body?.status?.status_code;

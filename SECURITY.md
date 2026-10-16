@@ -30,6 +30,20 @@ Gladys before reporting a problem.
 
 In scope: the code of this repository and the Docker image it publishes.
 
+What the integration handles:
+
+- **Secrets**: the Tempest personal access token, stored by Gladys in the
+  integration configuration. The integration sends it only to the Tempest
+  cloud (`swd.weatherflow.com` over HTTPS, `ws.weatherflow.com` over WSS), in
+  the query string as the API requires. It never writes it to `/data` nor to
+  the logs; the URLs that carry it are never logged.
+- **`/data`**: nothing is stored there. Everything is read again from the
+  Tempest cloud after a restart.
+- **Network**: outgoing HTTPS and WSS to the Tempest cloud only. No port is
+  opened, no local network access is needed.
+- **Writes**: none. The integration only reads the Tempest account; the Gladys
+  devices it creates are read-only.
+
 Out of scope: Gladys Assistant itself (see its
 [security policy](https://github.com/GladysAssistant/Gladys/security/policy)),
-and the third-party services and devices the integration talks to.
+and the Tempest cloud and stations (report those to WeatherFlow-Tempest).

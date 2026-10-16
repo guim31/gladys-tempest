@@ -1,61 +1,177 @@
-# Demo Devices Template
+# Tempest
 
-This is the user documentation of the integration. Gladys re-hosts this file
-and shows a permanent **Documentation** link to it in the Configuration screen
-(in the user's language, with English as the fallback) — it is when
-configuring that the user needs it most. Keep the short onboarding hints in
-the `section` blocks of the manifest `config_schema`; put the long
-step-by-step (screenshots, troubleshooting…) here.
+Brings your **WeatherFlow Tempest** weather stations into Gladys: temperature,
+humidity, pressure, wind, rain, lightning, UV, sunlight and the station's own
+forecast, in real time.
 
-## What you get
+> Developed without the hardware: this integration follows the official Tempest
+> API documentation and real API answers published by other projects, but it
+> has not yet been tried on a real station. Feedback is welcome on the
+> GitHub repository.
 
-Six demo devices show up after installation: a weather station (real data
-from Open-Meteo), a switch, a dimmable light, a smart plug with power
-metering, a motion sensor and a camera.
+This integration is not affiliated with WeatherFlow-Tempest, Inc.
+
+## Overview
+
+The integration connects to the **Tempest cloud** with your personal access
+token, exactly like the Tempest app does:
+
+- one Gladys device per station of your account;
+- a **live feed** (WebSocket): one observation per minute, the wind every 3
+  seconds, rain and lightning detected the moment they happen;
+- the **station forecast** ("better forecast" of the Tempest API) for today,
+  tomorrow and the next days;
+- two scene triggers, one scene action and one dashboard widget.
+
+Everything is read-only: the integration never changes anything on your
+Tempest account.
+
+## Requirements
+
+- Gladys 5.1 or later.
+- A Tempest station (the all-in-one sensor, `ST`) set up in the Tempest app.
+  Older WeatherFlow AIR and SKY sensors are not supported.
+- Internet access from Gladys: the data comes from the Tempest cloud.
+- A **personal access token**: sign in to the Tempest web app
+  (tempestwx.com), open **Settings → Data Authorizations**, then **Create
+  Token**. Copy the token.
+
+The Tempest also broadcasts its data on the local network (UDP), but Gladys
+integrations run in an isolated container that cannot receive local broadcasts:
+this integration therefore uses the cloud only.
 
 ## Configuration
 
-1. Open the **Configuration** tab of the integration.
-2. Set the **latitude** and **longitude** the demo weather station should
-   observe (they default to Paris), and pick your temperature unit.
-   The **refresh interval** sets how often the weather station and the
-   plug's power are read: every 5 minutes by default, every minute at most.
-3. Save: the devices appear in the **Discovery** tab, ready to be added.
+1. Install the integration: **Integrations → Install from GitHub**, or from
+   the store.
+2. In the **Configuration** tab, paste your **personal access token** and save.
+3. Optional settings:
+   - **Language of the texts** (French by default): the names of the features
+     of the stations you add from now on, the precipitation type, the
+     forecast texts and the scene sentences;
+   - **Instant wind every 3 seconds** (on by default): see below.
+4. Click **List my stations** to check the token: the button lists the
+   stations of your account and tells which ones can be added.
+5. Open the **Discovery** tab and add your station.
 
-The **Prefer the local connection** toggle drives the demo plug: it reports
-the channel it actually uses as a badge (local or cloud), with an orange dot
-when it runs degraded (local refused, cloud fallback).
+The status at the top of the Configuration screen says when the token is
+refused or the Tempest service cannot be reached.
 
-## Actions
+## The station device
 
-- **Test the weather provider** — performs a live request to Open-Meteo and
-  shows the current temperature and humidity under the button.
-- **Identify a device** — pick one of your devices in the list and it will
-  signal itself (the demo light "blinks" in the logs).
+Each station brings these features (read-only):
 
-## Scenes
+| Feature                                | Unit             | Source                      |
+| -------------------------------------- | ---------------- | --------------------------- |
+| Temperature, feels like, dew point     | °C               | every minute                |
+| Humidity                               | %                | every minute                |
+| Station pressure, sea-level pressure   | hPa              | every minute                |
+| Average wind, wind gusts               | km/h             | every minute                |
+| Wind direction                         | degrees          | every minute                |
+| Instant wind (3 s)                     | km/h             | every 3 seconds, no history |
+| Rain intensity                         | mm/h             | every minute                |
+| Rain today                             | mm               | every minute                |
+| Raining                                | yes/no           | every minute                |
+| Precipitation type                     | text             | none, rain, hail            |
+| Lightning strikes (last hour)          | count            | every minute                |
+| Last lightning distance                | km               | at each strike              |
+| UV index, solar radiation, illuminance | index, W/m², lux | every minute                |
+| Battery voltage                        | V                | every minute                |
+| Forecast today / tomorrow              | text             | every 30 minutes            |
+| Minimum and maximum today / tomorrow   | °C               | every 30 minutes            |
+| Chance of rain today / tomorrow        | %                | every 30 minutes            |
 
-The integration adds its own cards to the scene editor (Gladys 5.1 or
-later), under the **Integrations** category:
+Gladys converts temperatures and speeds to your preferred units. The battery
+is the voltage of the Tempest's supercapacitor (about 2.4 to 2.8 V; the
+station saves power below 2.45 V), not a percentage. The sea-level pressure
+is computed from the station pressure and the station elevation, with the
+formula of the Tempest documentation.
 
-- **Motion detected** (trigger) — starts the scene when a demo motion sensor
-  sees something move. Optionally pick the sensor and what moved (person,
-  animal); left empty, any detection matches. The following actions can
-  read what moved with `{{triggerEvent.data.target}}`.
-- **Identify a device** (action) — makes the chosen device signal itself.
-  It returns whether the device could signal itself, so the following
-  actions can depend on it.
+## Widget
 
-## Dashboard
+Add the **Tempest station** widget to a dashboard and pick a station:
 
-Add the **Demo status** widget to a dashboard: it shows the live
-temperature of the weather station and the power of the office plug, the
-connection the plug currently uses (orange when degraded) and the observed
-location. Its **Identify the light** button makes the demo light signal
-itself.
+- five live tiles: temperature, humidity, wind, rain today, pressure;
+- a status list: current conditions, wind direction and gusts, pressure
+  trend, precipitation, last lightning (distance and time), UV index;
+- the forecast of the next days, or of the next hours (widget setting).
+
+## Scene triggers
+
+In the scene editor, **Integrations** category:
+
+- **it starts raining** — the station detects rain after at least 30 minutes
+  without any. It fires once per rain episode, within seconds thanks to the
+  station's own rain-start event. Optional filter: the station. Variable:
+  the station name.
+- **lightning nearby** — a lightning strike within the distance you choose
+  (5, 10, 15, 20, 30 or 40 km), the first one for 30 minutes at that
+  distance. When a storm comes closer, the smaller distances fire in turn.
+  Variables: the strike distance (km) and the station name.
+
+After a restart of the integration, rain already falling or a strike already
+known does not fire the triggers again.
+
+## Scene action
+
+**forecast summary** — today's or tomorrow's forecast of a station:
+
+- `summary`: a ready-made sentence, e.g. "Today: Rain possible, 4 to 12 °C,
+  60 % chance of rain.";
+- `condition`, `temperature_min`, `temperature_max`,
+  `precipitation_probability`: the numbers, to use in conditions.
+
+The sentence follows the **Language of the texts** setting.
+
+## Scene examples
+
+- **Close the awning when it starts raining**: trigger "it starts raining",
+  action "close the awning".
+- **Unplug the antenna amplifier when a storm comes**: trigger "lightning
+  nearby" within 10 km, action: turn off the plug and send a message
+  with the strike distance.
+- **Morning briefing**: at 7:00, action "forecast summary" (today), then send
+  the `summary` output as a message.
+- **Skip the watering**: at 6:00, "forecast summary"; if the chance of rain is
+  above 60 %, do not start the sprinkler. The "Rain today" feature can also
+  stop it after a shower.
+
+## Refresh and data use
+
+- The live feed keeps one connection to the Tempest cloud for all your
+  stations; it reconnects by itself (from 1 second to 5 minutes between
+  attempts) and is reopened when it stays silent for 3 minutes.
+- While the live feed is down, each added station is read once a minute over
+  the REST API. The forecast is read every 30 minutes per station.
+- WeatherFlow asks applications to stay under 100 REST requests per minute per
+  user: the integration uses at most about 3 per minute per station.
+- Only the stations you added to Gladys are followed.
+- A value that does not change is sent again every 6 hours, so it never shows
+  "no recent value".
+- Tempest data is for the personal use of the station owner (Tempest remote
+  data access policy).
 
 ## Troubleshooting
 
-The integration logs everything it does: check the integration logs from the
-Gladys UI (or `docker logs` on the host) with `LOG_LEVEL=debug` for the full
-detail.
+- **"The Tempest access token was refused"**: the token was deleted or
+  mistyped. Create a new one on tempestwx.com and paste it again.
+- **No station in Discovery**: click **List my stations**. A station without a
+  Tempest (AIR and SKY only) cannot be added.
+- **Values stop updating**: check that Gladys has Internet access and look at
+  the integration logs (one line when a problem starts, one when it ends;
+  `LOG_LEVEL=debug` shows every message).
+- **The instant wind is too lively**: turn off **Instant wind every 3
+  seconds**; the feature then follows the one-minute average.
+
+## Limits
+
+- Developed without the hardware: the integration has not been tried on a
+  real station yet.
+- Cloud only: no local (UDP) data, inaccessible from the integration
+  container.
+- Tempest (`ST`) stations only: no AIR or SKY.
+- The feature names are set when the station is added: changing the language
+  later only applies to stations added afterwards.
+- Scene filters only compare values for equality: the lightning trigger offers
+  fixed distances.
+- The forecast is the Tempest one, for the station location.

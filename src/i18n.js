@@ -348,7 +348,8 @@ export function stationListMessage(stations) {
         : text.noTempest;
       return `${station.name} (#${station.id}, ${detail})`;
     });
-    message[language] = `${text.count(stations.length)} ${lines.join(' ; ')}. ${text.next}`;
+    message[language] =
+      `${text.count(stations.length)} ${lines.join(language === 'fr' ? ' ; ' : '; ')}. ${text.next}`;
   }
   return message;
 }

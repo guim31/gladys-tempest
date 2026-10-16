@@ -418,7 +418,7 @@ export class TempestHub {
     }
     if (this.status !== 'ok') {
       const wait = this.status === 'unauthorized' ? this.timings.unauthorizedRetryMs : 0;
-      if (force || this.now() - this.stationsCheckedAt >= wait) {
+      if (this.now() - this.stationsCheckedAt >= wait) {
         await this.loadStations();
         this.syncSubscriptions();
       }

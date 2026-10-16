@@ -1,67 +1,191 @@
-# Template de démonstration
+# Tempest
 
-Ceci est la documentation utilisateur de l'intégration. Gladys ré-héberge ce
-fichier et affiche un lien **Documentation** permanent vers lui dans l'écran
-de configuration (dans la langue de l'utilisateur, avec l'anglais en repli) —
-c'est au moment de configurer que l'utilisateur en a le plus besoin. Gardez
-les courtes indications d'accueil dans les blocs `section` du `config_schema`
-du manifest ; mettez ici le pas-à-pas détaillé (captures d'écran, dépannage…).
+Amène vos stations météo **WeatherFlow Tempest** dans Gladys : température,
+humidité, pression, vent, pluie, éclairs, UV, ensoleillement et les prévisions
+de la station elle-même, en temps réel.
 
-## Ce que vous obtenez
+> Développée sans le matériel : cette intégration suit la documentation
+> officielle de l'API Tempest et de vraies réponses de l'API publiées par
+> d'autres projets, mais elle n'a pas encore été essayée sur une vraie
+> station. Vos retours sont les bienvenus sur le dépôt GitHub.
 
-Six appareils de démonstration apparaissent après l'installation : une
-station météo (vraies données Open-Meteo), un interrupteur, une lampe
-variable, une prise connectée avec mesure de puissance, un détecteur de
-mouvement et une caméra.
+Cette intégration n'est pas affiliée à WeatherFlow-Tempest, Inc.
+
+## Présentation
+
+L'intégration se connecte au **cloud Tempest** avec votre jeton d'accès
+personnel, exactement comme l'application Tempest :
+
+- un appareil Gladys par station de votre compte ;
+- un **flux en direct** (WebSocket) : une observation par minute, le vent
+  toutes les 3 secondes, la pluie et les éclairs détectés à l'instant où ils
+  arrivent ;
+- les **prévisions de la station** (« better forecast » de l'API Tempest)
+  pour aujourd'hui, demain et les jours suivants ;
+- deux déclencheurs de scène, une action de scène et un widget de tableau de
+  bord.
+
+Tout est en lecture seule : l'intégration ne modifie jamais rien sur votre
+compte Tempest.
+
+## Prérequis
+
+- Gladys 5.1 ou plus récent.
+- Une station Tempest (le capteur tout-en-un, `ST`) installée dans
+  l'application Tempest. Les anciens capteurs WeatherFlow AIR et SKY ne sont
+  pas pris en charge.
+- Un accès Internet depuis Gladys : les données viennent du cloud Tempest.
+- Un **jeton d'accès personnel** : connectez-vous à l'application web Tempest
+  (tempestwx.com), ouvrez **Paramètres → Autorisations de données**, puis
+  **Créer un jeton**. Copiez le jeton.
+
+La Tempest diffuse aussi ses données sur le réseau local (UDP), mais les
+intégrations Gladys tournent dans un conteneur isolé qui ne reçoit pas les
+diffusions locales : cette intégration passe donc uniquement par le cloud.
 
 ## Configuration
 
-1. Ouvrez l'onglet **Configuration** de l'intégration.
-2. Renseignez la **latitude** et la **longitude** que la station météo de
-   démonstration doit observer (Paris par défaut), et choisissez votre unité
-   de température. L'**intervalle de rafraîchissement** règle la fréquence
-   de lecture de la station météo et de la puissance de la prise : toutes
-   les 5 minutes par défaut, toutes les minutes au plus.
-3. Enregistrez : les appareils apparaissent dans l'onglet **Découverte**,
-   prêts à être ajoutés.
+1. Installez l'intégration : **Intégrations → Installer depuis GitHub**, ou
+   depuis le store.
+2. Dans l'onglet **Configuration**, collez votre **jeton d'accès personnel**
+   et enregistrez.
+3. Réglages facultatifs :
+   - **Langue des textes** (français par défaut) : les noms des
+     fonctionnalités des stations ajoutées désormais, le type de
+     précipitation, les textes des prévisions et les phrases des scènes ;
+   - **Vent instantané toutes les 3 secondes** (activé par défaut) : voir
+     plus bas.
+4. Cliquez sur **Lister mes stations** pour vérifier le jeton : le bouton
+   liste les stations de votre compte et indique lesquelles peuvent être
+   ajoutées.
+5. Ouvrez l'onglet **Découverte** et ajoutez votre station.
 
-Le réglage **Préférer la connexion locale** pilote la prise de
-démonstration : elle affiche en badge le canal réellement utilisé (local ou
-cloud), avec un point orange quand elle fonctionne en mode dégradé (local
-refusé, bascule cloud).
+Le statut en haut de l'écran de configuration indique quand le jeton est
+refusé ou quand le service Tempest est injoignable.
 
-## Actions
+## L'appareil station
 
-- **Tester le fournisseur météo** — effectue une requête en direct vers
-  Open-Meteo et affiche la température et l'humidité actuelles sous le
-  bouton.
-- **Identifier un appareil** — choisissez un de vos appareils dans la liste
-  et il se signale (la lampe de démonstration « clignote » dans les logs).
+Chaque station apporte ces fonctionnalités (en lecture seule) :
 
-## Scènes
+| Fonctionnalité                                  | Unité             | Source                          |
+| ----------------------------------------------- | ----------------- | ------------------------------- |
+| Température, ressenti, point de rosée           | °C                | chaque minute                   |
+| Humidité                                        | %                 | chaque minute                   |
+| Pression (station), pression (niveau de la mer) | hPa               | chaque minute                   |
+| Vent moyen, rafales                             | km/h              | chaque minute                   |
+| Direction du vent                               | degrés            | chaque minute                   |
+| Vent instantané (3 s)                           | km/h              | toutes les 3 s, sans historique |
+| Intensité de pluie                              | mm/h              | chaque minute                   |
+| Pluie du jour                                   | mm                | chaque minute                   |
+| Il pleut                                        | oui/non           | chaque minute                   |
+| Type de précipitation                           | texte             | aucune, pluie, grêle            |
+| Éclairs (dernière heure)                        | nombre            | chaque minute                   |
+| Distance du dernier éclair                      | km                | à chaque éclair                 |
+| Indice UV, rayonnement solaire, luminosité      | indice, W/m², lux | chaque minute                   |
+| Tension de la batterie                          | V                 | chaque minute                   |
+| Prévision aujourd'hui / demain                  | texte             | toutes les 30 minutes           |
+| Minimum et maximum aujourd'hui / demain         | °C                | toutes les 30 minutes           |
+| Risque de pluie aujourd'hui / demain            | %                 | toutes les 30 minutes           |
 
-L'intégration ajoute ses propres cartes à l'éditeur de scènes (Gladys 5.1
-ou plus récent), dans la catégorie **Intégrations** :
+Gladys convertit températures et vitesses dans vos unités préférées. La
+batterie est la tension du supercondensateur de la Tempest (environ 2,4 à
+2,8 V ; la station économise son énergie sous 2,45 V), pas un pourcentage. La
+pression au niveau de la mer est calculée à partir de la pression de la
+station et de son altitude, avec la formule de la documentation Tempest.
 
-- **Mouvement détecté** (déclencheur) — lance la scène quand un détecteur
-  de démonstration voit bouger quelque chose. Choisissez éventuellement le
-  détecteur et ce qui a bougé (personne, animal) ; laissés vides, toute
-  détection correspond. Les actions suivantes peuvent lire ce qui a bougé
-  avec `{{triggerEvent.data.target}}`.
-- **Identifier un appareil** (action) — fait se signaler l'appareil choisi.
-  Elle indique si l'appareil a pu se signaler, pour que les actions
-  suivantes puissent en dépendre.
+## Widget
 
-## Tableau de bord
+Ajoutez le widget **Station Tempest** à un tableau de bord et choisissez une
+station :
 
-Ajoutez le widget **État de la démo** à un tableau de bord : il affiche en
-direct la température de la station météo et la puissance de la prise du
-bureau, la connexion utilisée par la prise (en orange si dégradée) et la
-position observée. Son bouton **Identifier la lampe** fait se signaler la
-lampe de démonstration.
+- cinq tuiles en direct : température, humidité, vent, pluie du jour,
+  pression ;
+- une liste d'état : conditions actuelles, direction du vent et rafales,
+  tendance de la pression, précipitation, dernier éclair (distance et heure),
+  indice UV ;
+- les prévisions des prochains jours, ou des prochaines heures (réglage du
+  widget).
+
+## Déclencheurs de scène
+
+Dans l'éditeur de scènes, catégorie **Intégrations** :
+
+- **il commence à pleuvoir** — la station détecte de la pluie après au moins
+  30 minutes sans. Il se déclenche une fois par épisode de pluie, en quelques
+  secondes grâce à l'événement de début de pluie de la station. Filtre
+  facultatif : la station. Variable : le nom de la station.
+- **éclair à proximité** — un éclair à moins de la distance choisie (5, 10,
+  15, 20, 30 ou 40 km), le premier depuis 30 minutes à cette distance. Quand
+  un orage se rapproche, les distances plus courtes se déclenchent à leur
+  tour. Variables : la distance de l'éclair (km) et le nom de la station.
+
+Après un redémarrage de l'intégration, une pluie déjà en cours ou un éclair
+déjà connu ne relance pas les déclencheurs.
+
+## Action de scène
+
+**résumé des prévisions** — la prévision du jour ou du lendemain d'une
+station :
+
+- `summary` : une phrase toute faite, par exemple « Aujourd'hui : Pluie
+  possible, de 4 à 12 °C, 60 % de risque de pluie. » ;
+- `condition`, `temperature_min`, `temperature_max`,
+  `precipitation_probability` : les valeurs, à utiliser dans des conditions.
+
+La phrase suit le réglage **Langue des textes**.
+
+## Exemples de scènes
+
+- **Rentrer le store quand il commence à pleuvoir** : déclencheur « il
+  commence à pleuvoir », action « fermer le store ».
+- **Débrancher l'ampli d'antenne quand un orage approche** : déclencheur
+  « éclair à proximité » à moins de 10 km, action : éteindre la prise et
+  envoyer un message avec la distance de l'éclair.
+- **Bulletin du matin** : à 7 h, action « résumé des prévisions »
+  (aujourd'hui), puis envoyer la sortie `summary` en message.
+- **Sauter l'arrosage** : à 6 h, « résumé des prévisions » ; si le risque de
+  pluie dépasse 60 %, ne pas lancer l'arrosage. La fonctionnalité « Pluie du
+  jour » peut aussi l'arrêter après une averse.
+
+## Rafraîchissement et usage des données
+
+- Le flux en direct garde une seule connexion au cloud Tempest pour toutes vos
+  stations ; il se reconnecte tout seul (de 1 seconde à 5 minutes entre deux
+  tentatives) et est rouvert s'il reste muet 3 minutes.
+- Tant que le flux en direct est coupé, chaque station ajoutée est lue une
+  fois par minute par l'API REST. Les prévisions sont lues toutes les 30
+  minutes par station.
+- WeatherFlow demande aux applications de rester sous 100 requêtes REST par
+  minute et par utilisateur : l'intégration en fait au plus environ 3 par
+  minute et par station.
+- Seules les stations ajoutées à Gladys sont suivies.
+- Une valeur qui ne change pas est renvoyée toutes les 6 heures, pour ne
+  jamais afficher « pas de valeur récente ».
+- Les données Tempest sont réservées à l'usage personnel du propriétaire de la
+  station (politique d'accès distant aux données Tempest).
 
 ## Dépannage
 
-L'intégration journalise tout ce qu'elle fait : consultez les logs de
-l'intégration depuis l'interface Gladys (ou `docker logs` sur l'hôte) avec
-`LOG_LEVEL=debug` pour le détail complet.
+- **« Le jeton d'accès Tempest a été refusé »** : le jeton a été supprimé ou
+  mal copié. Créez-en un nouveau sur tempestwx.com et collez-le à nouveau.
+- **Aucune station dans Découverte** : cliquez sur **Lister mes stations**.
+  Une station sans Tempest (AIR et SKY seulement) ne peut pas être ajoutée.
+- **Les valeurs ne bougent plus** : vérifiez que Gladys a accès à Internet et
+  consultez les journaux de l'intégration (une ligne quand un problème
+  commence, une quand il se termine ; `LOG_LEVEL=debug` montre chaque
+  message).
+- **Le vent instantané bouge trop** : désactivez **Vent instantané toutes les
+  3 secondes** ; la fonctionnalité suit alors la moyenne à la minute.
+
+## Limites
+
+- Développée sans le matériel : l'intégration n'a pas encore été essayée sur
+  une vraie station.
+- Cloud uniquement : pas de données locales (UDP), inaccessibles depuis le
+  conteneur de l'intégration.
+- Stations Tempest (`ST`) uniquement : pas d'AIR ni de SKY.
+- Les noms des fonctionnalités sont fixés à l'ajout de la station : changer
+  de langue ensuite ne concerne que les stations ajoutées après.
+- Les filtres de scène ne comparent que des égalités : le déclencheur des
+  éclairs propose des distances fixes.
+- Les prévisions sont celles de Tempest, pour l'emplacement de la station.

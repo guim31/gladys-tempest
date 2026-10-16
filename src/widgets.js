@@ -299,7 +299,8 @@ export function buildStationContent({
   }
   if (reading?.windAvg !== null && reading?.windAvg !== undefined) {
     const direction =
-      reading.windDirection === null || reading.windDirection === undefined
+      // A calm wind has no direction worth naming.
+      reading.windDirection === null || reading.windDirection === undefined || reading.windAvg === 0
         ? ''
         : `${compassPoint(reading.windDirection, language)} `;
     const gusts =

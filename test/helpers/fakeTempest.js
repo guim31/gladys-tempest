@@ -73,7 +73,7 @@ export function createFakeTempest({ token = TOKEN } = {}) {
       if (path === 'stations') {
         return json(cloud.stations);
       }
-      let match = path.match(/^observations\/station\/(\d+)$/);
+      const match = path.match(/^observations\/station\/(\d+)$/);
       if (match) {
         const body = cloud.observations[match[1]];
         return body ? json(body) : json({ status: { status_code: 404 } }, 404);
@@ -82,7 +82,6 @@ export function createFakeTempest({ token = TOKEN } = {}) {
         const body = cloud.forecasts[query.station_id];
         return body ? json(body) : json({ status: { status_code: 404 } }, 404);
       }
-      match = null;
       return json({}, 404);
     },
 
