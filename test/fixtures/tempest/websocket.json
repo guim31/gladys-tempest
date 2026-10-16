@@ -1,0 +1,97 @@
+{
+  "obs_st": {
+    "device_id": 100001,
+    "type": "obs_st",
+    "obs": [
+      [
+        1703785918, 0.0, 0.0, 0.0, 0.0, 3.0, 793.3, -9.4, 92.0, 7875.0, 0.28, 66.0, 0.0, 0.0, 0.0,
+        0.0, 2.62, 1.0, 0.0, 0.0, 0.0, 0.0
+      ]
+    ],
+    "summary": {
+      "pressure_trend": "rising",
+      "strike_count_1h": 0,
+      "strike_count_3h": 0,
+      "precip_total_1h": 0.0,
+      "strike_last_dist": 26,
+      "strike_last_epoch": 1701193918,
+      "precip_accum_local_yesterday": 0.478541,
+      "precip_accum_local_yesterday_final": 1.126487,
+      "precip_analysis_type_yesterday": 1,
+      "feels_like": -9.4,
+      "heat_index": -9.4,
+      "wind_chill": -9.4,
+      "dew_point": -10.5,
+      "wet_bulb_temperature": -9.7,
+      "wet_bulb_globe_temperature": -9.2,
+      "air_density": 1.04779,
+      "delta_t": 0.3,
+      "precip_minutes_local_day": 0,
+      "precip_minutes_local_yesterday": 22
+    },
+    "source": "mqtt",
+    "serial_number": "ST-00000123",
+    "hub_sn": "HB-00000456",
+    "firmware_revision": 172
+  },
+  "rapid_wind": {
+    "device_id": 100001,
+    "serial_number": "ST-00000123",
+    "type": "rapid_wind",
+    "hub_sn": "HB-00000456",
+    "ob": [1703785921, 1.07, 129]
+  },
+  "evt_strike": {
+    "serial_number": "ST-00000123",
+    "type": "evt_strike",
+    "hub_sn": "HB-00000456",
+    "evt": [1703785928, 13, -182, 1],
+    "source": "enhanced",
+    "device_id": 100001
+  },
+  "evt_precip": {
+    "type": "evt_precip",
+    "device_id": 100001,
+    "serial_number": "ST-00000123",
+    "hub_sn": "HB-00000456",
+    "evt": [1703785938],
+    "source": "enhanced"
+  },
+  "connection_opened": {
+    "type": "connection_opened"
+  },
+  "ack": {
+    "type": "ack",
+    "id": "gladys-1"
+  },
+  "obs_st_rain": {
+    "type": "obs_st",
+    "device_id": 100001,
+    "obs": [
+      [
+        1703785978,
+        0,
+        0.09,
+        0.54,
+        33,
+        6,
+        1014.8,
+        28.8,
+        71,
+        16639,
+        1.83,
+        139,
+        0.05,
+        1,
+        0,
+        0,
+        2.42,
+        1,
+        0.07615,
+        null,
+        null,
+        0
+      ]
+    ]
+  }
+}
