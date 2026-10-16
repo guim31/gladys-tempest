@@ -5,7 +5,8 @@ contributors.
 
 ## What this is
 
-A Gladys Assistant **external integration**: a Node.js service (Node 22+, ESM,
+The **Tempest** integration: WeatherFlow Tempest weather stations in Gladys,
+through the Tempest cloud API. A Gladys Assistant **external integration**: a Node.js service (Node 22+, ESM,
 no build step) that runs in its own sandboxed Docker container and talks to
 Gladys through
 [`@gladysassistant/integration-sdk`](https://github.com/GladysAssistant/integration-sdk-js),
@@ -16,8 +17,8 @@ its only runtime dependency. It started from the official JavaScript template.
 ```bash
 npm install
 npm test                                  # node --test, the built-in runner
-node --test test/devices.test.js          # one file
-node --test --test-name-pattern "plug"    # tests whose name matches
+node --test test/live.test.js             # one file
+node --test --test-name-pattern "rain"    # tests whose name matches
 npm run lint                              # ESLint
 npm run format:check                      # Prettier, as the CI runs it
 npm run format                            # Prettier, fix in place
@@ -31,16 +32,27 @@ pushing.
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
-src/scenes.js                     scene action handlers (manifest `scene_actions`)
-src/widgets.js                    dashboard widget handlers (manifest `widgets`)
+index.js                          SDK wiring only: src/app.js registers the handlers before connect()
+src/app.js                        handlers: scan, read-only setValue, poll fallback, device events,
+                                  action, scene action, widget, config, connection
+src/hub.js                        the account's stations, live feed messages, REST fallback,
+                                  states (publishChangedStates + heartbeat), scene events
+src/poller.js                     the container's own refresh timer (Gladys#3198), onPoll as fallback
+src/devices.js                    station -> device, FEATURES (keys are forever), states
+src/triggers.js                   rain episodes and lightning thresholds (scene triggers)
+src/scenes.js                     scene action handler (manifest `scene_actions`)
+src/widgets.js                    dashboard widget (manifest `widgets`)
+src/i18n.js                       every text in en/fr/de/es
+src/issues.js                     repeated failures logged once
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
+src/tempest/client.js             Tempest REST client
+src/tempest/socket.js             Tempest WebSocket feed
+src/tempest/model.js              Tempest payloads -> readings, forecast
+scripts/probe.mjs                 read-only probe of the real Tempest API (needs the network)
 gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys (same sections)
 test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+                                  and a fake Tempest cloud (test/helpers/fakeTempest.js)
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -70,8 +82,10 @@ test/                             node --test, against the SDK's fake Gladys (in
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
   code (defaults, action, scene and widget handlers): change both sides
   together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
+- **User-facing text** exists in four languages (English, French, German,
+  Spanish): action messages, manifest texts, feature names, widget contents, and
+  `docs/en.md`, `fr.md`, `de.md`, `es.md`, kept in sync (same sections).
+  `test/i18n.test.js` enforces it.
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
   in English. Tests never touch the network.
 
@@ -233,3 +247,45 @@ long, et sur un « Sie »/« Ihr… » de politesse en allemand. Le store exige 
 - Docs `en`, `fr`, `de`, `es` avec les mêmes sections.
 - Chauffe, ouverture, sécurité : ne rien rendre pilotable « comme un thermostat » ou par un assistant
   vocal quand une erreur serait dangereuse (leçon d'OctoPrint).
+
+## Intégration Tempest
+
+**API** (doc officielle : branche `gh-pages` de `github.com/weatherflow/Tempest`, dossier `api/` ;
+`weatherflow.github.io` est refusé par le proxy des sessions, le `git clone` passe) :
+
+- REST `https://swd.weatherflow.com/swd/rest` : `stations`, `observations/station/{id}`,
+  `better_forecast?station_id=…`. Le jeton personnel passe dans la query `token` : **ne jamais
+  journaliser une URL**. Une erreur peut arriver dans un corps 200 :
+  `{ status: { status_code, status_message } }`, `status_code` 0 = succès, 401 = jeton refusé.
+- WebSocket `wss://ws.weatherflow.com/swd/data?token=…` : **une seule connexion par client**,
+  coupée après 10 min sans trafic. `listen_start` (par `device_id` du capteur `ST`, pas l'id de
+  station) donne `obs_st` chaque minute, `evt_precip` (début de pluie) et `evt_strike`
+  (`evt: [epoch, km, énergie]`) ; `listen_rapid_start` donne `rapid_wind` toutes les 3 s
+  (`ob: [epoch, m/s, degrés]`). La disposition du tableau `obs_st` est dans `src/tempest/model.js`.
+- Quota REST : rester sous 100 requêtes par minute et par utilisateur. Données réservées à
+  l'usage personnel du propriétaire de la station (politique d'accès distant).
+- Tout est métrique par défaut ; `better_forecast` reçoit quand même les `units_*` explicites,
+  car les unités d'affichage choisies dans l'appli Tempest (`station_units`) ne doivent pas
+  fuir dans Gladys.
+
+**Pièges et choix**
+
+- Le WebSocket `obs_st` ne donne **ni pression au niveau de la mer** (calculée : formule AMS de
+  la page « derived metric formulas », altitude + `agl` du capteur ; testée contre la valeur REST)
+  ni point de rosée hors `summary`. L'observation REST n'a **ni batterie ni type de
+  précipitation** : `mergeReading` garde la dernière valeur connue.
+- La batterie est une **tension** (supercondensateur, ~2,4–2,8 V), publiée en
+  `energy-sensor/voltage` : un pourcentage inventé tromperait les alertes batterie de Gladys.
+- Pas d'unité W/m² dans Gladys : le rayonnement solaire est un `light-sensor/decimal` sans unité,
+  l'unité dans le nom. `light-sensor/integer` n'a pas d'icône dans le front : éviter.
+- Probabilité de pluie : `precipitation-sensor/decimal` en `percent` (le cœur valide les unités
+  globalement, pas par catégorie).
+- Déclencheur « éclair à moins de N km » : les filtres de scène ne font qu'égalité, donc un
+  événement **par seuil** franchi (`within_km`, champ `required`, sinon un filtre vide
+  matcherait chaque seuil). Chaque seuil et chaque épisode de pluie ne se déclenchent qu'après
+  30 min de calme ; la première lecture après démarrage sert de référence.
+- La Tempest émet aussi en UDP local (port 50222) : inaccessible depuis le conteneur (réseau en
+  pont, pas de diffusion), et la découverte médiée du cœur ne relaie que des scans à la demande,
+  pas un flux continu.
+- Développée sans le matériel ni le compte : `scripts/probe.mjs` (lecture seule) est à lancer
+  depuis une machine qui a le réseau pour vérifier les refus et la forme réelle des réponses.

@@ -1,0 +1,195 @@
+{
+  "stations": [
+    {
+      "created_epoch": 1658343273,
+      "devices": [
+        {
+          "device_id": 100002,
+          "device_meta": {
+            "agl": 1.8288,
+            "environment": "indoor",
+            "name": "HB-00000456",
+            "wifi_network_name": ""
+          },
+          "device_type": "HB",
+          "firmware_revision": "177",
+          "hardware_revision": "1",
+          "location_id": 20001,
+          "serial_number": "HB-00000456"
+        },
+        {
+          "device_id": 100001,
+          "device_meta": {
+            "agl": 1.8288,
+            "environment": "outdoor",
+            "name": "ST-00000123",
+            "wifi_network_name": ""
+          },
+          "device_settings": {
+            "show_precip_final": true
+          },
+          "device_type": "ST",
+          "firmware_revision": "172",
+          "hardware_revision": "1",
+          "location_id": 20001,
+          "serial_number": "ST-00000123"
+        }
+      ],
+      "is_local_mode": false,
+      "last_modified_epoch": 1658344464,
+      "latitude": 40.0,
+      "location_id": 20001,
+      "longitude": -105.0,
+      "name": "Garden",
+      "public_name": "Garden",
+      "station_id": 20001,
+      "station_items": [
+        {
+          "device_id": 100001,
+          "item": "air_temperature_humidity",
+          "location_id": 20001,
+          "location_item_id": 657904,
+          "sort": 0,
+          "station_id": 20001,
+          "station_item_id": 657904
+        },
+        {
+          "device_id": 100001,
+          "item": "barometric_pressure",
+          "location_id": 20001,
+          "location_item_id": 657906,
+          "sort": 3,
+          "station_id": 20001,
+          "station_item_id": 657906
+        },
+        {
+          "device_id": 100002,
+          "item": "diagnostics",
+          "location_id": 20001,
+          "location_item_id": 657912,
+          "station_id": 20001,
+          "station_item_id": 657912
+        },
+        {
+          "device_id": 100001,
+          "item": "diagnostics",
+          "location_id": 20001,
+          "location_item_id": 657913,
+          "sort": 6,
+          "station_id": 20001,
+          "station_item_id": 657913
+        },
+        {
+          "device_id": 100001,
+          "item": "light",
+          "location_id": 20001,
+          "location_item_id": 657908,
+          "sort": 2,
+          "station_id": 20001,
+          "station_item_id": 657908
+        },
+        {
+          "device_id": 100001,
+          "item": "lightning",
+          "location_id": 20001,
+          "location_item_id": 657905,
+          "sort": 4,
+          "station_id": 20001,
+          "station_item_id": 657905
+        },
+        {
+          "device_id": 100001,
+          "item": "rain",
+          "location_id": 20001,
+          "location_item_id": 657907,
+          "sort": 5,
+          "station_id": 20001,
+          "station_item_id": 657907
+        },
+        {
+          "device_id": 100001,
+          "item": "wind",
+          "location_id": 20001,
+          "location_item_id": 657909,
+          "sort": 1,
+          "station_id": 20001,
+          "station_item_id": 657909
+        }
+      ],
+      "station_meta": {
+        "elevation": 2063.150146484375,
+        "share_with_wf": true,
+        "share_with_wu": true
+      },
+      "timezone": "America/Denver",
+      "timezone_offset_minutes": -420
+    },
+    {
+      "created_epoch": 1658343273,
+      "devices": [
+        {
+          "device_id": 100012,
+          "device_meta": {
+            "agl": 1.8288,
+            "environment": "indoor",
+            "name": "HB-00000789",
+            "wifi_network_name": ""
+          },
+          "device_type": "HB",
+          "firmware_revision": "177",
+          "hardware_revision": "1",
+          "location_id": 20002,
+          "serial_number": "HB-00000789"
+        },
+        {
+          "device_id": 100013,
+          "device_meta": {
+            "agl": 1.5,
+            "environment": "outdoor",
+            "name": "AR-00000321",
+            "wifi_network_name": ""
+          },
+          "device_type": "AR",
+          "firmware_revision": "35",
+          "hardware_revision": "1",
+          "location_id": 20002,
+          "serial_number": "AR-00000321"
+        },
+        {
+          "device_id": 100014,
+          "device_meta": {
+            "agl": 3.0,
+            "environment": "outdoor",
+            "name": "SK-00000654",
+            "wifi_network_name": ""
+          },
+          "device_type": "SK",
+          "firmware_revision": "43",
+          "hardware_revision": "1",
+          "location_id": 20002,
+          "serial_number": "SK-00000654"
+        }
+      ],
+      "is_local_mode": false,
+      "last_modified_epoch": 1658344464,
+      "latitude": 46.0,
+      "location_id": 20002,
+      "longitude": 6.0,
+      "name": "Chalet",
+      "public_name": "Chalet",
+      "station_id": 20002,
+      "station_items": [],
+      "station_meta": {
+        "elevation": 2063.150146484375,
+        "share_with_wf": true,
+        "share_with_wu": true
+      },
+      "timezone": "Europe/Paris",
+      "timezone_offset_minutes": 60
+    }
+  ],
+  "status": {
+    "status_code": 0,
+    "status_message": "SUCCESS"
+  }
+}

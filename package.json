@@ -1,12 +1,13 @@
 {
-  "name": "gladys-integration-template-js",
+  "name": "gladys-tempest",
   "version": "1.0.0",
   "private": true,
-  "description": "Official starter template to build an external integration for Gladys Assistant with the JavaScript SDK.",
+  "description": "Gladys Assistant integration for WeatherFlow Tempest weather stations, through the Tempest cloud API.",
   "type": "module",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
+    "probe": "node scripts/probe.mjs",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

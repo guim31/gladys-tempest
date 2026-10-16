@@ -1,77 +1,115 @@
+// -----------------------------------------------------------------------------
+// The station widget: valid against the core vocabulary and budget, bound to
+// features that exist, localized, with a readable empty state.
+// -----------------------------------------------------------------------------
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateWidgetContent } from '@gladysassistant/integration-sdk';
-import { createFakeGladys } from '@gladysassistant/integration-sdk/testing';
-import { buildDiscoveredDevices } from '../src/devices/index.js';
-import { simulateLanSession } from '../src/devices/plug.js';
-import { DEMO_STATUS_WIDGET, WIDGETS, refreshWidgets } from '../src/widgets.js';
-import { normalizeConfig } from '../src/config.js';
+import { FIXTURES, TOKEN } from './helpers/fakeTempest.js';
+import { addStation, createWorld, flush } from './helpers/world.js';
 
-const gladys = createFakeGladys();
-const config = normalizeConfig();
-const demoStatus = WIDGETS[DEMO_STATUS_WIDGET];
+async function liveWorld() {
+  const world = await createWorld();
+  await addStation(world);
+  world.cloud.socket.accept();
+  world.cloud.socket.push(FIXTURES.websocket.obs_st);
+  world.cloud.socket.push(FIXTURES.websocket.evt_strike);
+  await flush();
+  return world;
+}
 
-// What the SDK passes to onWidgetGet, plus the config index.js adds.
-const getContent = (cfg = config) =>
-  demoStatus.get(gladys, { settings: {}, language: 'en', units: 'metric', config: cfg });
+const stationDevice = (gladys) => gladys.externalIds('station', '20001').device;
 
-test('the demo_status content is rendered exactly as sent', async () => {
-  // [] = nothing the core would drop, truncate or trim to the content budget.
-  assert.deepEqual(validateWidgetContent(await getContent()), []);
-});
+async function content(world, request) {
+  const ack = await world.gladys.fake.widgetGet('station', request);
+  assert.equal(ack.success, true, ack.error);
+  return ack.data.content;
+}
 
-test('the degraded plug connection content is valid too', async () => {
-  simulateLanSession(false);
-  try {
-    const content = await getContent();
-    assert.deepEqual(validateWidgetContent(content), []);
-    const status = content.components.find((component) => component.type === 'status');
-    assert.ok(
-      status.items.some((item) => item.color === 'warning'),
-      'degraded shows a warning',
-    );
-  } finally {
-    simulateLanSession(true);
-  }
-});
-
-test('the live tiles reference features the integration publishes', async () => {
-  const featureIds = new Set(
-    buildDiscoveredDevices(gladys, config).flatMap((device) =>
-      device.features.map((feature) => feature.external_id),
-    ),
-  );
-  const liveTiles = (await getContent()).components.filter((c) => c.device_feature);
-  assert.ok(liveTiles.length > 0, 'the template demonstrates a device-bound tile');
-  for (const tile of liveTiles) {
-    assert.ok(featureIds.has(tile.device_feature), `unknown feature ${tile.device_feature}`);
-  }
-});
-
-test('every button action of the content is handled and answers a short toast', async () => {
-  const buttons = (await getContent()).components.filter((c) => c.type === 'button' && c.action);
-  assert.ok(buttons.length > 0, 'the template demonstrates a widget action');
-  for (const { action } of buttons) {
-    const message = await demoStatus.action(gladys, {
-      actionKey: action.key,
-      params: action.params ?? {},
-      settings: {},
-      config,
+for (const view of ['daily', 'hourly']) {
+  for (const [language, units] of [
+    ['en', 'metric'],
+    ['fr', 'metric'],
+    ['de', 'metric'],
+    ['es', 'metric'],
+    ['en', 'us'],
+  ]) {
+    test(`the ${view} content is valid and bound to real features (${language}, ${units})`, async () => {
+      const world = await liveWorld();
+      const widget = await content(world, {
+        settings: { device: stationDevice(world.gladys), forecast: view },
+        language,
+        units,
+      });
+      assert.deepEqual(validateWidgetContent(widget), []);
+      const features = new Set(
+        world.gladys.fake.discoveredDevices[0].features.map((f) => f.external_id),
+      );
+      for (const component of widget.components) {
+        if (component.device_feature) {
+          assert.ok(features.has(component.device_feature), component.device_feature);
+        }
+      }
+      const list = widget.components.find((c) => c.type === 'card-list');
+      assert.equal(list.items.length, view === 'daily' ? 5 : 8);
+      const status = widget.components.find((c) => c.type === 'status');
+      assert.ok(status.items.some((item) => item.icon === 'zap' && /13 km|8 mi/.test(item.value)));
+      world.app.stop();
     });
-    assert.ok(message.en, 'the toast carries at least the mandatory `en` text');
-    assert.ok(message.en.length <= 200, 'toasts are capped at 200 characters');
   }
-});
+}
 
-test('an unknown widget action fails, so the user sees the error', async () => {
-  await assert.rejects(
-    demoStatus.action(gladys, { actionKey: 'unknown', params: {}, settings: {}, config }),
-    /Unknown widget action/,
+test('the forecast list is localized in the station time zone', async () => {
+  const world = await liveWorld();
+  const widget = await content(world, {
+    settings: { device: stationDevice(world.gladys) },
+    language: 'fr',
+    units: 'metric',
+  });
+  const list = widget.components.find((c) => c.type === 'card-list');
+  // 2023-12-28 in Denver is a Thursday.
+  assert.equal(list.items[0].title, 'Jeudi');
+  assert.equal(list.items[0].subtitle, 'Dégagé · -6° / 5° · 0 %');
+  const us = await content(world, {
+    settings: { device: stationDevice(world.gladys) },
+    language: 'en',
+    units: 'us',
+  });
+  assert.equal(
+    us.components.find((c) => c.type === 'card-list').items[0].subtitle,
+    'Clear · 21° / 41° · 0 %',
   );
+  world.app.stop();
 });
 
-test('refreshWidgets nudges every widget', () => {
-  const fresh = createFakeGladys();
-  refreshWidgets(fresh);
-  assert.deepEqual(fresh.fake.widgetRefreshes, Object.keys(WIDGETS));
+test('empty states: not configured, no station picked, a station removed', async () => {
+  const unconfigured = await createWorld({ config: {} });
+  let widget = await content(unconfigured, { settings: {}, language: 'de' });
+  assert.match(widget.components[0].text, /Zugriffstoken/);
+  assert.deepEqual(validateWidgetContent(widget), []);
+  unconfigured.app.stop();
+
+  const world = await createWorld({ config: { token: TOKEN } });
+  widget = await content(world, { settings: {}, language: 'es' });
+  assert.match(widget.components[0].text, /Elija una estación/);
+  widget = await content(world, {
+    settings: { device: stationDevice(world.gladys) },
+    language: 'en',
+  });
+  assert.match(widget.components[0].text, /no longer in Gladys/);
+  world.app.stop();
+});
+
+test('a station added but not observed yet still shows its forecast', async () => {
+  const world = await createWorld();
+  world.cloud.failures['observations'] = 'down';
+  await addStation(world);
+  const widget = await content(world, {
+    settings: { device: stationDevice(world.gladys) },
+    language: 'en',
+  });
+  assert.deepEqual(validateWidgetContent(widget), []);
+  assert.ok(widget.components.some((c) => c.type === 'card-list'));
+  world.app.stop();
 });
