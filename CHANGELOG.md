@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-16
+
 ### Added
 
 - WeatherFlow Tempest stations in Gladys, through the Tempest cloud with a
@@ -29,3 +31,6 @@ the notes of the version's GitHub Release.
   lightning and the forecast of the next days or hours.
 - English, French, German and Spanish, for the feature names, texts and
   documentation.
+
+[Unreleased]: https://github.com/guim31/gladys-tempest/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/guim31/gladys-tempest/releases/tag/v1.0.1
